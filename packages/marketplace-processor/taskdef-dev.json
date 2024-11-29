@@ -1,0 +1,55 @@
+{
+    "taskRoleArn": "arn:aws:iam::831249657736:role/marketplace-processor-dev-task",
+    "executionRoleArn": "arn:aws:iam::831249657736:role/marketplace-processor-dev-task-exec",
+    "containerDefinitions": [
+      {
+        "name": "marketplace-processor-dev",
+        "image": "<IMAGE_NAME>",
+        "essential": true,
+        "memoryReservation": 10,
+        "environment": [
+            {
+                "name": "AWS_REGION",
+                "value": "us-east-1"
+            },
+            {
+                "name": "STAGE",
+                "value": "dev"
+            },
+            {
+                "name": "PROCESS_POLICY_ASSET_INTERVAL",
+                "value": "* * * * *"
+            },
+            {
+                "name": "BLOCKFROST_CARDANO_NETWORK",
+                "value": "preprod"
+            }
+        ],
+        "secrets":[
+            {
+                "name": "BLOCKFROST_PROJECT_ID",
+                "valueFrom": "arn:aws:ssm:us-east-1:831249657736:parameter/marketplace/dev/BLOCKFROST_API_KEY"
+            },
+            {
+                "name": "DB_SERVER_NAME",
+                "valueFrom": "arn:aws:ssm:us-east-1:831249657736:parameter/marketplace/dev/DB_SERVER_NAME"
+            }
+        ],
+        "mountPoints":[],
+        "logConfiguration": {
+          "logDriver": "awslogs",
+          "options": {
+            "awslogs-group": "/ecs/marketplace-processor-dev",
+            "awslogs-region": "us-east-1",
+            "awslogs-stream-prefix": "log"
+          }
+        }
+      }
+    ],
+    "requiresCompatibilities": [
+      "EXTERNAL"
+    ],
+    "volumes": [],
+    "networkMode": "bridge",
+    "family": "marketplace-processor-dev"
+  }

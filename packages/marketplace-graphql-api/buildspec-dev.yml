@@ -1,0 +1,20 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions: 
+      nodejs: 18
+    commands:
+      - aws codeartifact login --tool npm --repository empowa_repo --domain empowa --domain-owner 831249657736 --region us-east-1
+      - rm -rf package-lock.json yarn.lock node_modules      
+      - npm i
+
+  build: 
+    commands:
+      - npm run deploy
+
+
+cache:
+  paths:
+    - "/root/.npm/**/*"
+    - 'node_modules/**/*' # Cache `node_modules` for faster `yarn` or `npm i`

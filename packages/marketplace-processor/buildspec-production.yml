@@ -1,0 +1,42 @@
+version: 0.2
+
+env:
+  variables:
+    REPOSITORY_URI: 831249657736.dkr.ecr.us-east-1.amazonaws.com/marketplace-processor
+    CLUSTER_NAME: cardano-mainnet
+    SERVICE_NAME: marketplace-processor
+    TASK_FAMILY: marketplace-processor-prod
+
+phases:
+  pre_build:
+    commands:
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin 831249657736.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+      - export VERSION=$CODEBUILD_RESOLVED_SOURCE_VERSION
+      - export LATEST_VERSION=latest
+  build: 
+    commands:
+      - docker build -t $REPOSITORY_URI:$VERSION -t $REPOSITORY_URI:$LATEST_VERSION .
+      
+  post_build:
+    commands:
+      - docker push $REPOSITORY_URI:$VERSION
+      - docker push $REPOSITORY_URI:$LATEST_VERSION
+      - IMAGE_PLACEHOLDER="<IMAGE_NAME>"
+      - sed -i 's@'"$IMAGE_PLACEHOLDER"'@'"$REPOSITORY_URI"':'"$VERSION"'@g' taskdef-prod.json
+      - CONTAINER_DEFINITION_FILE=$(cat taskdef-prod.json)
+      - export TASK_DEF="file://$(pwd)/taskdef-prod.json"
+      - export TASK_VERSION=$(aws ecs register-task-definition --cli-input-json $TASK_DEF | jq --raw-output '.taskDefinition.revision')
+      - echo "Registered ECS Task Definition:" $TASK_VERSION
+      - |
+        if [ -n "$TASK_VERSION" ]; then
+          aws ecs stop-task --cluster $CLUSTER_NAME --task $( aws ecs list-tasks --cluster $CLUSTER_NAME --family $TASK_FAMILY | jq -r '.taskArns[0]' | cut -d'/' -f 3)
+          echo "Update ECS Cluster: " $CLUSTER_NAME
+          echo "Service: " $SERVICE_NAME
+          echo "Task Definition: " $TASK_FAMILY:$TASK_VERSION
+          DEPLOYED_SERVICE=$(aws ecs update-service --cluster $CLUSTER_NAME --service $SERVICE_NAME --task-definition $TASK_FAMILY:$TASK_VERSION --force-new-deployment | jq --raw-output '.service.serviceName')
+          echo "Deployment of $DEPLOYED_SERVICE complete"
+        else
+          echo "exit: No task definition"
+          exit 1
+        fi
+      
